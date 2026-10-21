@@ -75,7 +75,10 @@ Options for `npm start` / `bin/tokenscope.js`:
   ```
   - Cache-read multipliers differ by model (0.025× on Fable 5.1, 0.05× on Opus 5.5 and Sonnet 5.5, 0.1× elsewhere).
   - Fast mode, Haiku 5.5's prompt-length tier, Sonnet 4/4.5 long context and US data residency are applied when the transcript shows them.
-- **Subagents** come from `<session>/subagents/*.jsonl`. They are attached to the prompt that spawned them.
+- **Subagents** come from `<session>/subagents/*.jsonl`. Each part is attached to the prompt that was active when it ran, so a subagent resumed by a later prompt is split.
+- **Refusal fallbacks.** When a safety classifier declined a request and Claude Code retried on another model, every attempt in `usage.iterations` is priced on its own model.
+  - An attempt that declined mid-stream is billed.
+  - An attempt that declined before any output is billed only in the `bio`, `frontier_llm` and `reasoning_extraction` categories, [per Anthropic's rules](https://platform.claude.com/docs/en/build-with-claude/refusals-and-fallback#how-refusals-are-billed).
 - **Prices** are in [`shared/pricing.ts`](shared/pricing.ts). Source: [Anthropic pricing](https://platform.claude.com/docs/en/about-claude/pricing), as of 2026-10-21.
 
 **Accuracy.** Some background requests are billed but never written to the transcript: session titles, away summaries, compaction, and the WebSearch/WebFetch tools' own model calls. Estimates therefore run a little low. `npm run calibrate` compares Tokenscope with Claude Code's own cost counter. On the author's machine it was 89% of that counter across 76 sessions, and usually 93–100% for short sessions.

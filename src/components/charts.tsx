@@ -1,6 +1,7 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, ReferenceLine, ResponsiveContainer, Scatter, ComposedChart, Tooltip, XAxis, YAxis } from 'recharts';
 import { modelLabel } from '../../shared/pricing';
+import { isAvoidableRebuild } from '../../shared/steps';
 import type { Cost, DailyPoint, Prompt, Step } from '../../shared/types';
 import { CATEGORIES, modelColor } from '../lib/colors';
 import { dateTime, dayLabel, pct, tokens, usd, usdShort } from '../lib/format';
@@ -166,7 +167,7 @@ function point(n: number, prompt: number, s: Step): CallPoint {
     cacheWrite: s.cost.cacheWrite,
     output: s.cost.output,
     input: s.cost.input + s.cost.webSearch,
-    rebuild: s.cacheRebuild && s.rebuildReason !== 'first' ? s.contextTokens : null,
+    rebuild: isAvoidableRebuild(s) ? s.contextTokens : null,
     tools: s.tools.map((t) => t.name).join(', '),
     model: s.model,
   };

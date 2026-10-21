@@ -11,6 +11,7 @@ function step(cost: number, tools: Step['tools'] = []): Step {
     speed: 'standard',
     usage: { ...zeroUsage(), cacheRead: 100_000, output: 1000 },
     cost: { ...zeroCost(), cacheRead: cost * 0.6, output: cost * 0.4, total: cost },
+    geo: null,
     contextTokens: 100_000,
     tools,
     textPreview: '',

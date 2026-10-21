@@ -35,6 +35,13 @@ export interface Step {
   ts: string;
   model: string;
   speed: 'standard' | 'fast';
+  /** `usage.inference_geo`; "us" bills at 1.1× on 4.6+ models. */
+  geo: string | null;
+  /**
+   * Set on an attempt that a safety classifier declined before the request fell back to
+   * another model (`usage.iterations`). Mid-stream declines and some categories are billed.
+   */
+  refusal?: { category: string | null; billed: boolean; fallbackModel: string };
   usage: Usage;
   cost: Cost;
   /** input + cache read + cache write: the prompt size of this request. */
@@ -213,6 +220,8 @@ export interface Overview {
   topSessions: SessionSummary[];
   /** Sessions whose transcript changed in the last few minutes. */
   live: SessionSummary[];
+  /** Every request in the range re-priced on each what-if model (per request, so prompt-length tiers apply). */
+  whatIf: { id: string; label: string; cost: number }[];
   topPrompts: { sessionId: string; projectId: string; sessionTitle: string; index: number; text: string; cost: number; steps: number; ts: string }[];
   toolStats: ToolStat[];
   projects: ProjectSummary[];

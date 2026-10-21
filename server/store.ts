@@ -1,7 +1,7 @@
 import { readdir, stat } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { addCost, addUsage, MODEL_PRICES, normalizeModelId, priceUncached, zeroCost, zeroUsage } from '../shared/pricing';
+import { addCost, addUsage, costOf, MODEL_PRICES, normalizeModelId, priceUncached, ratesFor, whatIfModels, zeroCost, zeroUsage } from '../shared/pricing';
 import type {
   DailyPoint,
   DataStatus,
@@ -279,6 +279,8 @@ export class Store {
     const tools = new Map<string, ToolStat>();
     const promptCosts: Overview['topPrompts'] = [];
     const rebuildBySession = new Map<string, number>();
+    const whatIfTargets = whatIfModels();
+    const whatIf = new Map<string, number>();
     let bigContextCost = 0;
 
     for (const e of this.valid()) {
@@ -290,7 +292,16 @@ export class Store {
         addCost(totals.cost, s.cost);
         addUsage(totals.usage, s.usage);
         totals.steps++;
-        totals.uncachedCost += priceUncached(s.model, s.usage, { speed: s.speed });
+        const unbilled = s.refusal != null && !s.refusal.billed;
+        if (!unbilled) {
+          totals.uncachedCost += priceUncached(s.model, s.usage, { speed: s.speed, geo: s.geo });
+          for (const m of whatIfTargets) whatIf.set(m.id, (whatIf.get(m.id) ?? 0) + costOf(s.usage, ratesFor(m, s.usage)).total);
+        }
+        const premium = rebuildPremium(s);
+        if (premium > 0) {
+          totals.cacheRebuildCost += premium;
+          rebuildBySession.set(e.detail.id, (rebuildBySession.get(e.detail.id) ?? 0) + premium);
+        }
         if (f.subagent) totals.subagentCost += s.cost.total;
         if (s.contextTokens > BIG_CONTEXT_TOKENS) bigContextCost += s.cost.total;
         costByModel[s.model] = (costByModel[s.model] ?? 0) + s.cost.total;
@@ -317,13 +328,6 @@ export class Store {
       for (const p of e.detail.prompts) {
         if (!promptCost.has(p.index)) continue;
         if (p.kind === 'prompt' || p.kind === 'command') totals.prompts++;
-        for (const s of p.steps) {
-          if (inRange(Date.parse(s.ts), range)) {
-            const premium = rebuildPremium(s);
-            totals.cacheRebuildCost += premium;
-            if (premium > 0) rebuildBySession.set(e.detail.id, (rebuildBySession.get(e.detail.id) ?? 0) + premium);
-          }
-        }
         promptCosts.push({
           sessionId: e.detail.id,
           projectId: e.detail.projectId,
@@ -357,6 +361,7 @@ export class Store {
       topSessions: [...sessions].sort((a, b) => b.cost.total - a.cost.total).slice(0, 8),
       live: this.sessions({ from: null, to: null }).filter((s) => s.isLive),
       topPrompts,
+      whatIf: whatIfTargets.map((m) => ({ id: m.id, label: m.label, cost: whatIf.get(m.id) ?? 0 })),
       toolStats: [...tools.values()].sort((a, b) => b.carryCost - a.carryCost),
       projects,
       insights: [],
@@ -466,7 +471,13 @@ function rangedSummary(e: Entry, range: Range): SessionSummary | null {
     promptIdx.add(f.promptIndex);
   }
   const promptCount = prompts.filter((p) => promptIdx.has(p.index) && (p.kind === 'prompt' || p.kind === 'command')).length;
-  return { ...summary, usage, cost, costByModel, subagentCost, stepCount: steps.length, promptCount };
+  let start = '';
+  let end = '';
+  for (const f of steps) {
+    if (!start || f.step.ts < start) start = f.step.ts;
+    if (f.step.ts > end) end = f.step.ts;
+  }
+  return { ...summary, start: start || summary.start, end: end || summary.end, usage, cost, costByModel, subagentCost, stepCount: steps.length, promptCount };
 }
 
 function localDate(d: Date): string {

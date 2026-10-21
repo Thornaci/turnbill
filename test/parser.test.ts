@@ -3,7 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { sessionInsights } from '../server/insights';
-import { parseSession } from '../server/parser';
+import { parseSession, rebuildPremium } from '../server/parser';
 import { Store } from '../server/store';
 import type { SessionDetail } from '../shared/types';
 
@@ -172,8 +172,10 @@ describe('parseSession', () => {
     expect(detail.prompts[3].interrupted).toBe(true);
     expect(detail.prompts[0].steps[0].rebuildReason).toBe('first');
     expect(detail.prompts[4].steps[0].rebuildReason).toBe('compaction');
-    expect(detail.cacheRebuilds).toBe(2);
-    expect(detail.cacheRebuildCost).toBeGreaterThan(0);
+    // Re-caching the compacted summary is unavoidable, so only the idle rebuild counts as extra.
+    expect(rebuildPremium(detail.prompts[4].steps[0])).toBe(0);
+    expect(detail.cacheRebuilds).toBe(1);
+    expect(detail.cacheRebuildCost).toBeCloseTo(rebuildPremium(rebuilt), 10);
   });
 
   it('totals equal the sum of steps', () => {

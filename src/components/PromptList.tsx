@@ -1,6 +1,7 @@
 import { Bot, Brain, ChevronDown, ChevronRight, CornerDownRight, Scissors } from 'lucide-react';
 import { memo, useState } from 'react';
 import { modelLabel } from '../../shared/pricing';
+import { isAvoidableRebuild } from '../../shared/steps';
 import type { CompactionEvent, Prompt, Step, SubagentRun } from '../../shared/types';
 import { CATEGORIES, modelColor } from '../lib/colors';
 import { clock, count, dateTime, duration, homeRelative, minutes, pct, tokens, usd } from '../lib/format';
@@ -49,7 +50,7 @@ export const PromptRow = memo(function PromptRow({
 }) {
   const calls = prompt.steps.length + prompt.subagents.reduce((a, r) => a + r.steps.length, 0);
   const kind = KIND_LABEL[prompt.kind];
-  const rebuilds = prompt.steps.filter((s) => s.cacheRebuild && s.rebuildReason !== 'first').length;
+  const rebuilds = prompt.steps.filter(isAvoidableRebuild).length;
   return (
     <li id={`prompt-${prompt.index}`} className="scroll-mt-20">
       {compactionBefore && (
@@ -125,14 +126,7 @@ function PromptDetail({ prompt, allModels }: { prompt: Prompt; allModels: string
 }
 
 function rebuildText(s: Step) {
-  const reason =
-    s.rebuildReason === 'idle'
-      ? `after ${minutes(s.gapMinutes)} idle`
-      : s.rebuildReason === 'model-switch'
-        ? 'model switched'
-        : s.rebuildReason === 'compaction'
-          ? 'after compaction'
-          : 'cause unclear';
+  const reason = s.rebuildReason === 'idle' ? `after ${minutes(s.gapMinutes)} idle` : s.rebuildReason === 'model-switch' ? 'model switched' : 'cause unclear';
   return `Cache rebuilt · ${reason}`;
 }
 
@@ -178,7 +172,7 @@ export function StepsTable({ steps, allModels, subagents = [], nested }: { steps
 function StepRow({ step: s, n, allModels }: { step: Step; n: number; allModels: string[] }) {
   const written = s.usage.cacheWrite1h + s.usage.cacheWrite5m;
   return (
-    <tr className={cx('border-b border-line/70 align-top last:border-b-0', s.cacheRebuild && s.rebuildReason !== 'first' && 'bg-[color-mix(in_oklab,var(--status-serious)_7%,transparent)]')}>
+    <tr className={cx('border-b border-line/70 align-top last:border-b-0', isAvoidableRebuild(s) && 'bg-[color-mix(in_oklab,var(--status-serious)_7%,transparent)]', s.refusal && 'bg-surface-2/60')}>
       <td className="num py-2 pr-2 pl-5 text-fg-3">{n}</td>
       <td className="num px-2 py-2 whitespace-nowrap text-fg-2">
         {clock(s.ts)}
@@ -193,12 +187,18 @@ function StepRow({ step: s, n, allModels }: { step: Step; n: number; allModels: 
         </span>
       </td>
       <td className="max-w-[420px] px-2 py-2">
-        {s.cacheRebuild && s.rebuildReason !== 'first' && (
+        {isAvoidableRebuild(s) && (
           <div className="mb-1 text-[11.5px] font-medium" style={{ color: 'var(--status-serious)' }}>
             {rebuildText(s)} — {tokens(written)} tokens re-written
           </div>
         )}
-        {s.tools.length > 0 ? (
+        {s.rebuildReason === 'compaction' && <div className="mb-1 text-[11.5px] text-fg-3">Re-cached the compacted context — {tokens(written)} tokens</div>}
+        {s.refusal ? (
+          <span className="text-fg-2">
+            Declined by {modelLabel(s.model)}’s safety classifier{s.refusal.category ? ` (${s.refusal.category})` : ''}, retried on {modelLabel(s.refusal.fallbackModel)} in the next row ·{' '}
+            <span className="text-fg">{s.refusal.billed ? 'billed' : 'not billed'}</span>
+          </span>
+        ) : s.tools.length > 0 ? (
           <ul className="space-y-0.5">
             {s.tools.map((t) => (
               <li key={t.id} className="flex min-w-0 items-baseline gap-1.5" title={t.summary}>

@@ -81,7 +81,7 @@ export default function Overview() {
         </Card>
         <Card className="lg:col-span-5" i={6}>
           <CardHeader title="Models" subtitle="Spend by model, and the same tokens on others" />
-          <ModelMix costByModel={data.costByModel} usageByModel={data.usageByModel} allModels={allModels} />
+          <ModelMix costByModel={data.costByModel} whatIf={data.whatIf} allModels={allModels} />
         </Card>
       </div>
 

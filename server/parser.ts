@@ -6,11 +6,13 @@ import {
   addCost,
   addUsage,
   priceRequest,
+  promptTokens,
   ratesFor,
   resolvePrice,
   zeroCost,
   zeroUsage,
 } from '../shared/pricing';
+import { isAvoidableRebuild } from '../shared/steps';
 import type {
   CompactionEvent,
   Prompt,
@@ -41,7 +43,18 @@ interface StepBuilder {
   toolIds: Set<string>;
   /** Older Claude Code versions wrote subagent turns into the main file. */
   sidechain: boolean;
+  requestId: string | null;
+  /** `usage.iterations` from the final streamed line: one entry per attempt (refusal fallback, compaction). */
+  iterations: Json[] | null;
+  /** Earlier attempts of this request, priced separately. */
+  attempts: Step[];
 }
+
+/**
+ * Refusal categories billed even when the attempt declined before any output
+ * (https://platform.claude.com/docs/en/build-with-claude/refusals-and-fallback#how-refusals-are-billed).
+ */
+const BILLED_REFUSAL_CATEGORIES = new Set(['bio', 'frontier_llm', 'reasoning_extraction']);
 
 interface ThreadResult {
   steps: StepBuilder[];
@@ -228,6 +241,7 @@ async function readThread(
   const steps = new Map<string, StepBuilder>();
   const toolResults = new Map<string, { chars: number; isError: boolean }>();
   const uuidPrompt = new Map<string, string>();
+  const refusalCategory = new Map<string, string | null>();
   let lastPromptId: string | null = null;
   let order = 0;
   let cwd = cwdHint;
@@ -262,6 +276,9 @@ async function readThread(
     }
 
     if (rec.type !== 'assistant') {
+      if (rec.type === 'system' && rec.subtype === 'model_refusal_fallback' && typeof rec.requestId === 'string') {
+        refusalCategory.set(rec.requestId, typeof rec.apiRefusalCategory === 'string' ? rec.apiRefusalCategory : null);
+      }
       if (!onRecord && rec.uuid) promptIdFor(rec);
       continue;
     }
@@ -282,11 +299,15 @@ async function readThread(
         geo: typeof msg.usage.inference_geo === 'string' ? msg.usage.inference_geo : null,
         toolIds: new Set(),
         sidechain: rec.isSidechain === true,
+        requestId: null,
+        iterations: null,
+        attempts: [],
         step: {
           id,
           ts: rec.timestamp ?? '',
           model: String(msg.model ?? 'unknown'),
-          speed: msg.usage.speed === 'fast' ? 'fast' : 'standard',
+          speed: 'standard',
+          geo: null,
           usage,
           cost: zeroCost(),
           contextTokens: 0,
@@ -302,6 +323,11 @@ async function readThread(
     } else {
       b.step.usage = maxUsage(b.step.usage, usage);
     }
+    // The first streamed line can lack these; the final line always has them.
+    if (msg.usage.speed) b.step.speed = msg.usage.speed === 'fast' ? 'fast' : 'standard';
+    if (typeof msg.usage.inference_geo === 'string') b.geo = msg.usage.inference_geo;
+    if (Array.isArray(msg.usage.iterations) && msg.usage.iterations.length) b.iterations = msg.usage.iterations;
+    if (typeof rec.requestId === 'string') b.requestId = rec.requestId;
     if (msg.stop_reason) b.step.stopReason = msg.stop_reason;
     for (const block of Array.isArray(msg.content) ? msg.content : []) {
       if (block?.type === 'tool_use' || block?.type === 'server_tool_use') {
@@ -332,10 +358,44 @@ async function readThread(
         t.isError = r.isError;
       }
     }
-    b.step.contextTokens = b.step.usage.input + b.step.usage.cacheRead + b.step.usage.cacheWrite5m + b.step.usage.cacheWrite1h;
+    b.step.geo = b.geo;
+    b.step.contextTokens = promptTokens(b.step.usage);
     b.step.cost = priceRequest(b.step.model, b.step.usage, { speed: b.step.speed, geo: b.geo });
+    b.attempts = earlierAttempts(b, refusalCategory);
   }
   return { steps: list, toolResults };
+}
+
+/**
+ * Top-level usage covers only the attempt that produced the message; `usage.iterations` lists
+ * every attempt. Earlier attempts become their own steps so each is priced on its own model.
+ */
+function earlierAttempts(b: StepBuilder, refusalCategory: Map<string, string | null>): Step[] {
+  const its = b.iterations;
+  if (!its || its.length < 2) return [];
+  const fellBack = its.some((it) => it?.type === 'fallback_message');
+  const category = b.requestId ? (refusalCategory.get(b.requestId) ?? null) : null;
+  return its.slice(0, -1).map((it, k) => {
+    const usage = extractUsage(it);
+    const model = String(it?.model ?? b.step.model);
+    // A declined attempt bills if it produced output or its category is billed; other iterations always bill.
+    const billed = !fellBack || usage.output > 0 || (category != null && BILLED_REFUSAL_CATEGORIES.has(category));
+    return {
+      ...b.step,
+      id: `${b.step.id}#${k + 1}`,
+      model,
+      usage,
+      tools: [],
+      textPreview: '',
+      hasThinking: false,
+      stopReason: fellBack ? 'refusal' : String(it?.type ?? ''),
+      cacheRebuild: false,
+      rebuildReason: undefined,
+      contextTokens: promptTokens(usage),
+      cost: billed ? priceRequest(model, usage, { speed: b.step.speed, geo: b.geo }) : zeroCost(),
+      refusal: fellBack ? { category, billed, fallbackModel: b.step.model } : undefined,
+    };
+  });
 }
 
 /**
@@ -367,7 +427,7 @@ function annotateThread(steps: Step[], segmentStarts: Set<number>) {
     }
     const resolved = resolvePrice(s.model);
     if (resolved) {
-      const rates = ratesFor(resolved.price, s.usage, { speed: s.speed });
+      const rates = ratesFor(resolved.price, s.usage, { speed: s.speed, geo: s.geo });
       const writeRate = s.usage.cacheWrite5m > s.usage.cacheWrite1h ? rates.write5m : rates.write1h;
       const remaining = Math.max(0, ends[i] - i - 2);
       for (const t of s.tools) {
@@ -379,11 +439,11 @@ function annotateThread(steps: Step[], segmentStarts: Set<number>) {
   }
 }
 
-/** Extra cost of a rebuild over reading the same tokens from cache. */
+/** Extra cost of an avoidable rebuild over reading the same tokens from cache. */
 export function rebuildPremium(s: Step): number {
   const resolved = resolvePrice(s.model);
-  if (!resolved || !s.cacheRebuild || s.rebuildReason === 'first') return 0;
-  const rates = ratesFor(resolved.price, s.usage, { speed: s.speed });
+  if (!resolved || !isAvoidableRebuild(s)) return 0;
+  const rates = ratesFor(resolved.price, s.usage, { speed: s.speed, geo: s.geo });
   return (s.usage.cacheWrite5m * (rates.write5m - rates.read) + s.usage.cacheWrite1h * (rates.write1h - rates.read)) / 1e6;
 }
 
@@ -396,24 +456,34 @@ async function readMeta(file: string | null): Promise<Json> {
   }
 }
 
-async function parseSubagent(file: string, metaFile: string | null, cwd: string): Promise<{ run: SubagentRun; promptId: string | null }> {
+/**
+ * A subagent can be resumed by a later prompt, so its transcript is split into one run per
+ * prompt; each part is charged to the prompt that was active when it ran.
+ */
+async function parseSubagent(file: string, metaFile: string | null, cwd: string): Promise<{ run: SubagentRun; promptId: string | null }[]> {
   const meta = await readMeta(metaFile);
-  let promptId: string | null = null;
-  const thread = await readThread(file, cwd, (rec) => {
-    if (!promptId && typeof rec.promptId === 'string') promptId = rec.promptId;
-  });
-  const steps = thread.steps.map((b) => b.step);
-  annotateThread(steps, new Set());
-  const base = path.basename(file, '.jsonl');
-  return {
-    promptId,
-    run: buildRun(
-      base.replace(/^agent-/, ''),
-      String(meta.agentType ?? meta.customAgentType ?? 'subagent'),
-      String(meta.description ?? meta.name ?? ''),
-      steps,
-    ),
-  };
+  const thread = await readThread(file, cwd);
+  annotateThread(
+    thread.steps.map((b) => b.step),
+    new Set(),
+  );
+  const agentId = path.basename(file, '.jsonl').replace(/^agent-/, '');
+  const agentType = String(meta.agentType ?? meta.customAgentType ?? 'subagent');
+  const description = String(meta.description ?? meta.name ?? '');
+  const parts: { promptId: string | null; steps: Step[] }[] = [];
+  for (const b of thread.steps) {
+    const pid = b.promptId || null;
+    let part = parts[parts.length - 1];
+    if (!part || part.promptId !== pid) {
+      part = { promptId: pid, steps: [] };
+      parts.push(part);
+    }
+    part.steps.push(...b.attempts, b.step);
+  }
+  return parts.map((part, i) => ({
+    promptId: part.promptId,
+    run: buildRun(parts.length > 1 ? `${agentId}.${i + 1}` : agentId, agentType, i > 0 ? `${description} (resumed)`.trim() : description, part.steps),
+  }));
 }
 
 function buildRun(agentId: string, agentType: string, description: string, steps: Step[]): SubagentRun {
@@ -542,7 +612,8 @@ export async function parseSession(files: SessionFiles, opts: ParseOptions = {})
         const trimmed = text.trim();
         const interrupt = /^\[Request interrupted by user/.test(trimmed);
         const injected = trimmed.startsWith('<local-command') || trimmed.startsWith('<bash-');
-        const human = !isToolResult && !rec.isMeta && !rec.isCompactSummary && !interrupt && !injected && trimmed.length > 0;
+        const human = !isToolResult && !rec.isMeta && !rec.isCompactSummary && !rec.isSidechain && !interrupt && !injected && trimmed.length > 0;
+        const teammate = /^(<teammate-message|Another Claude session sent a message)/.test(trimmed);
 
         // Transcripts from older Claude Code versions have no promptId: every human message starts a prompt.
         let pid: string | null = typeof rec.promptId === 'string' ? rec.promptId : null;
@@ -574,6 +645,14 @@ export async function parseSession(files: SessionFiles, opts: ParseOptions = {})
           }
           return;
         }
+        if (teammate) {
+          if (p.kind === 'continuation') {
+            const from = /teammate_id="([^"]+)"/.exec(trimmed)?.[1];
+            p.kind = 'system';
+            p.text = `Message from another Claude session${from ? ` (${from})` : ''}`;
+          }
+          return;
+        }
         const cmd = parseCommand(trimmed);
         if (cmd) {
           if (p.kind === 'continuation' || p.kind === 'system') {
@@ -587,7 +666,7 @@ export async function parseSession(files: SessionFiles, opts: ParseOptions = {})
           p.kind = 'prompt';
           p.text = truncate(trimmed, MAX_PROMPT_CHARS);
           p.ts = ts || p.ts;
-        } else if (p.kind === 'prompt' && p.text.length < MAX_PROMPT_CHARS && !/^(<teammate-message|Another Claude session sent a message)/.test(trimmed)) {
+        } else if (p.kind === 'prompt' && p.text.length < MAX_PROMPT_CHARS) {
           // Messages typed while Claude was working are queued into the same prompt.
           p.text = truncate(`${p.text}\n\n${trimmed}`, MAX_PROMPT_CHARS);
         }
@@ -607,7 +686,7 @@ export async function parseSession(files: SessionFiles, opts: ParseOptions = {})
   for (const b of mainBuilders) {
     const pid = b.promptId || lastPromptId || 'continuation-0';
     const p = ensurePrompt(pid, b.step.ts, 'continuation');
-    p.steps.push(b.step);
+    p.steps.push(...b.attempts, b.step);
   }
 
   // Subagents attach to the prompt that spawned them.
@@ -617,13 +696,13 @@ export async function parseSession(files: SessionFiles, opts: ParseOptions = {})
   for (const b of main.steps) {
     if (!b.sidechain) continue;
     const key = b.promptId || lastPromptId || 'continuation-0';
-    legacy.set(key, [...(legacy.get(key) ?? []), b.step]);
+    legacy.set(key, [...(legacy.get(key) ?? []), ...b.attempts, b.step]);
   }
   for (const [promptId, steps] of legacy) {
     annotateThread(steps, new Set());
     runs.push({ promptId, run: buildRun(`sidechain-${promptId}`, 'sidechain', 'Subagent (inline transcript)', steps) });
   }
-  for (const sf of files.subagentFiles) runs.push(await parseSubagent(sf.file, sf.metaFile, cwd));
+  for (const sf of files.subagentFiles) runs.push(...(await parseSubagent(sf.file, sf.metaFile, cwd)));
 
   for (const { run, promptId } of runs) {
     if (run.steps.length === 0) continue;
@@ -644,7 +723,7 @@ export async function parseSession(files: SessionFiles, opts: ParseOptions = {})
   const models = new Set<string>();
   const toolStats = new Map<string, ToolStat>();
   let subagentCost = 0;
-  let subagentCount = 0;
+  const subagentIds = new Set<string>();
   let cacheRebuilds = 0;
   let cacheRebuildCost = 0;
   let peakContext = 0;
@@ -676,7 +755,7 @@ export async function parseSession(files: SessionFiles, opts: ParseOptions = {})
       p.peakContext = Math.max(p.peakContext, s.contextTokens);
       for (const t of s.tools) p.toolCounts[t.name] = (p.toolCounts[t.name] ?? 0) + 1;
       addTools(s.tools);
-      if (s.cacheRebuild && s.rebuildReason !== 'first') {
+      if (isAvoidableRebuild(s)) {
         cacheRebuilds++;
         cacheRebuildCost += rebuildPremium(s);
       }
@@ -686,12 +765,16 @@ export async function parseSession(files: SessionFiles, opts: ParseOptions = {})
       addUsage(p.usage, run.usage);
       addCost(p.cost, run.cost);
       subagentCost += run.cost.total;
-      subagentCount++;
+      subagentIds.add(run.agentId.split('.')[0]);
       stepCount += run.steps.length;
       for (const s of run.steps) {
         costByModel[s.model] = (costByModel[s.model] ?? 0) + s.cost.total;
         models.add(s.model);
         addTools(s.tools);
+        if (isAvoidableRebuild(s)) {
+          cacheRebuilds++;
+          cacheRebuildCost += rebuildPremium(s);
+        }
       }
     }
     const recorded = turnDurations.get(p.id);
@@ -742,7 +825,7 @@ export async function parseSession(files: SessionFiles, opts: ParseOptions = {})
     models: [...models],
     gitBranch,
     version,
-    subagentCount,
+    subagentCount: subagentIds.size,
     subagentCost,
     compactions: compactions.length,
     cacheRebuilds,

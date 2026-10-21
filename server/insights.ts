@@ -1,4 +1,5 @@
-import { costOf, MODEL_PRICES, resolvePrice } from '../shared/pricing';
+import { costOf, MODEL_PRICES, ratesFor, resolvePrice } from '../shared/pricing';
+import { isAvoidableRebuild } from '../shared/steps';
 import type { Insight, Overview, SessionDetail, SessionSummary, Severity, Step } from '../shared/types';
 import { CHARS_PER_TOKEN } from './parser';
 
@@ -24,11 +25,7 @@ export function repriceSteps(steps: Step[], targetModel: string): number {
   const target = MODEL_PRICES.find((m) => m.id === targetModel);
   if (!target) return 0;
   let total = 0;
-  for (const s of steps) {
-    let rates = target.rates;
-    if (target.longContext && s.contextTokens > target.longContext.threshold) rates = target.longContext.rates;
-    total += costOf(s.usage, rates).total;
-  }
+  for (const s of steps) if (!s.refusal || s.refusal.billed) total += costOf(s.usage, ratesFor(target, s.usage)).total;
   return total;
 }
 
@@ -42,11 +39,10 @@ export function sessionInsights(d: SessionDetail): Insight[] {
   // 1. Cache rebuilds.
   if (d.cacheRebuildCost >= 0.25) {
     const reasons: Record<string, number> = {};
-    for (const { s } of mainSteps) if (s.cacheRebuild && s.rebuildReason !== 'first') reasons[s.rebuildReason ?? 'unknown'] = (reasons[s.rebuildReason ?? 'unknown'] ?? 0) + 1;
+    for (const s of allSteps) if (isAvoidableRebuild(s)) reasons[s.rebuildReason ?? 'unknown'] = (reasons[s.rebuildReason ?? 'unknown'] ?? 0) + 1;
     const parts = [
       reasons.idle && `${reasons.idle} after idle gaps longer than the cache lifetime`,
       reasons['model-switch'] && `${reasons['model-switch']} after switching models`,
-      reasons.compaction && `${reasons.compaction} after compaction`,
       reasons.unknown && `${reasons.unknown} with no obvious trigger`,
     ].filter(Boolean);
     const share = d.cacheRebuildCost / total;

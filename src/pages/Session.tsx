@@ -1,6 +1,7 @@
 import { ChevronsDownUp, ChevronsUpDown, ExternalLink, GitBranch, Sparkles } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useParams } from 'react-router-dom';
+import { isAvoidableRebuild } from '../../shared/steps';
 import type { DataStatus, SessionDetail } from '../../shared/types';
 import { AnalyzeModal } from '../components/AnalyzeModal';
 import { buildCallPoints, CompositionBar, PromptCostChart, SessionCallsChart } from '../components/charts';
@@ -126,7 +127,8 @@ export default function SessionPage() {
             cache_write_1h_tokens: s.usage.cacheWrite1h,
             output_tokens: s.usage.output,
             context_tokens: s.contextTokens,
-            cache_rebuild: s.cacheRebuild && s.rebuildReason !== 'first' ? s.rebuildReason : '',
+            cache_rebuild: isAvoidableRebuild(s) ? s.rebuildReason : '',
+            refusal: s.refusal ? `${s.refusal.category ?? 'unknown'} (${s.refusal.billed ? 'billed' : 'not billed'})` : '',
             cost_usd: s.cost.total.toFixed(5),
           })),
         ),

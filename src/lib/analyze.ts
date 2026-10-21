@@ -1,4 +1,5 @@
 import { modelLabel, PRICING_AS_OF, resolvePrice } from '../../shared/pricing';
+import { isAvoidableRebuild } from '../../shared/steps';
 import type { Prompt, SessionDetail, Step } from '../../shared/types';
 import { duration, homeRelative, pct, tokens, usd } from './format';
 
@@ -120,10 +121,14 @@ export function buildAnalysis(d: SessionDetail & { projectPath?: string }, o: An
     } else {
       L.push(`> (${p.kind}, ${p.text.length} characters — text omitted)`);
     }
-    const rebuilds = p.steps.filter((s) => s.cacheRebuild && s.rebuildReason !== 'first');
+    const rebuilds = p.steps.filter(isAvoidableRebuild);
+    const refusals = stepsOf(p).filter((s) => s.refusal);
+    if (refusals.length) {
+      L.push(`- Safety-classifier refusals: ${refusals.map((s) => `${modelLabel(s.model)}${s.refusal!.category ? ` (${s.refusal!.category})` : ''} → ${modelLabel(s.refusal!.fallbackModel)}, ${s.refusal!.billed ? `billed ${usd(s.cost.total)}` : 'not billed'}`).join('; ')}`);
+    }
     if (rebuilds.length) {
       const why = (s: Step) =>
-        s.rebuildReason === 'idle' ? `after ${Math.round(s.gapMinutes ?? 0)} min idle` : s.rebuildReason === 'model-switch' ? 'after a model switch' : s.rebuildReason === 'compaction' ? 'after compaction' : 'cause unclear';
+        s.rebuildReason === 'idle' ? `after ${Math.round(s.gapMinutes ?? 0)} min idle` : s.rebuildReason === 'model-switch' ? 'after a model switch' : 'cause unclear';
       L.push(`- Cache rebuilds: ${rebuilds.map((s) => `${why(s)}, ${tokens(s.usage.cacheWrite1h + s.usage.cacheWrite5m)} tokens re-written for ${usd(s.cost.cacheWrite)}`).join('; ')}`);
     }
     if (o.includeToolDetails) {

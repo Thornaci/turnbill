@@ -1,7 +1,7 @@
 import { ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { costOf, modelLabel, whatIfModels } from '../../shared/pricing';
-import type { Insight, Step, ToolStat, Usage } from '../../shared/types';
+import { costOf, modelLabel, ratesFor, whatIfModels } from '../../shared/pricing';
+import type { Insight, Step, ToolStat } from '../../shared/types';
 import { modelColor } from '../lib/colors';
 import { count, pct, tokens, usd } from '../lib/format';
 import { withRange, type RangeKey } from '../lib/range';
@@ -50,21 +50,17 @@ export function InsightList({ insights, rangeKey, onPrompt, compact }: { insight
 }
 
 /** Spend by model plus a what-if: the same token counts priced on another model. */
-export function ModelMix({ costByModel, usageByModel, steps, allModels }: { costByModel: Record<string, number>; usageByModel?: Record<string, Usage>; steps?: Step[]; allModels: string[] }) {
+export function ModelMix({ costByModel, whatIf, steps, allModels }: { costByModel: Record<string, number>; whatIf?: { id: string; label: string; cost: number }[]; steps?: Step[]; allModels: string[] }) {
   const total = Object.values(costByModel).reduce((a, b) => a + b, 0);
   const rows = Object.entries(costByModel).sort((a, b) => b[1] - a[1]);
-  const targets = whatIfModels().map((m) => {
-    let cost = 0;
-    if (steps) {
-      for (const s of steps) {
-        const rates = m.longContext && s.contextTokens > m.longContext.threshold ? m.longContext.rates : m.rates;
-        cost += costOf(s.usage, rates).total;
-      }
-    } else if (usageByModel) {
-      for (const u of Object.values(usageByModel)) cost += costOf(u, m.rates).total;
-    }
-    return { id: m.id, label: m.label, cost };
-  });
+  // Priced per request so prompt-length tiers (Haiku 5.5 over 100K) apply; unbilled refusals are skipped.
+  const targets =
+    whatIf ??
+    whatIfModels().map((m) => ({
+      id: m.id,
+      label: m.label,
+      cost: (steps ?? []).reduce((a, s) => (s.refusal && !s.refusal.billed ? a : a + costOf(s.usage, ratesFor(m, s.usage)).total), 0),
+    }));
   if (!rows.length) return <Empty title="No usage" />;
   return (
     <div className="px-5 pb-5">

@@ -88,12 +88,13 @@ const FAMILY_FALLBACK: Record<string, string> = {
 /**
  * Normalizes ids as they appear in transcripts and on cloud providers:
  * `claude-haiku-4-5-20251001`, `claude-opus-5[1m]`, `us.anthropic.claude-sonnet-4-5-20250929-v1:0`,
+ * `global.anthropic.claude-opus-4-5-20251101-v1:0`,
  * `claude-opus-4-5@20251101`.
  */
 export function normalizeModelId(raw: string): string {
   let id = raw.toLowerCase().trim();
   id = id.replace(/\[[^\]]*\]$/, '');
-  id = id.replace(/^(?:[a-z]{2,4}\.)?anthropic\./, '');
+  id = id.replace(/^(?:[\w-]+\.)?anthropic\./, '');
   id = id.replace(/-v\d+(?::\d+)?$/, '');
   id = id.replace(/@.*$/, '');
   id = id.replace(/-\d{8}$/, '');

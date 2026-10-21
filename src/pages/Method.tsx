@@ -37,7 +37,8 @@ export default function Method() {
             </p>
             <p>
               <span className="font-medium text-fg">Cache rebuild</span> marks a call that wrote most of its context to the cache instead of reading it — typically the first
-              call after the 1-hour cache expired, after a model switch, or after compaction. The “extra” shown is what those tokens cost above the cache-read price.
+              call after the 1-hour cache expired or after a model switch. The “extra” shown is what those tokens cost above the cache-read price. Writes right after a
+              compaction are new content, so they are shown but not counted as extra.
             </p>
             <p>
               <span className="font-medium text-fg">Carry cost</span> estimates what a tool result cost by staying in context: its size (~3.5 characters per token) written
@@ -65,7 +66,12 @@ export default function Method() {
             </li>
             <li>Prices are Anthropic first-party API list prices. Bedrock, Vertex and negotiated discounts differ; batch discounts don’t apply to Claude Code.</li>
             <li>On Pro and Max plans you pay a subscription, not these amounts — the figures show the API-equivalent value of your usage.</li>
-            <li>When a refusal fell back to another model, the fallback’s usage is priced; the refused attempt is not.</li>
+            <li>
+              When a safety classifier declined a request and Claude Code fell back to another model, each attempt in <span className="font-mono">usage.iterations</span> is
+              priced on its own model. A decline before any output is billed only in the bio, frontier_llm and reasoning_extraction categories; the category comes from
+              Claude Code’s own fallback record.
+            </li>
+            <li>A response interrupted mid-stream keeps only the usage recorded when it started, so a little output can be missing.</li>
             <li>Unknown model ids are priced at the newest model of the same family and flagged in the data.</li>
           </ul>
         </Card>
