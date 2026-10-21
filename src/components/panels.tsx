@@ -25,8 +25,8 @@ export function InsightList({ insights, rangeKey, onPrompt, compact }: { insight
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <SeverityMark severity={it.severity} />
-                <div className="mt-1 text-[13.5px] font-medium leading-snug text-fg">{it.title}</div>
-                <p className={cx('mt-1 text-[12.5px] leading-relaxed text-fg-2', compact && 'clamp-2')}>{it.detail}</p>
+                <div className="wrap-any mt-1 text-[13.5px] font-medium leading-snug text-fg">{it.title}</div>
+                <p className={cx('wrap-any mt-1 text-[12.5px] leading-relaxed text-fg-2', compact && 'clamp-2')}>{it.detail}</p>
                 <div className="mt-1.5 flex flex-wrap gap-3 text-[12px]">
                   {link && (
                     <Link to={link} className="inline-flex items-center gap-1 text-fg-2 underline decoration-line-strong underline-offset-2 hover:text-fg">

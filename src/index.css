@@ -179,6 +179,11 @@ body::before {
   font-feature-settings: 'zero' 0;
 }
 
+/* Paths and URLs have no break opportunities; let them wrap anywhere instead of overflowing. */
+.wrap-any {
+  overflow-wrap: anywhere;
+}
+
 .tabular {
   font-variant-numeric: tabular-nums;
 }

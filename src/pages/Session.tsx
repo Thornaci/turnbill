@@ -146,11 +146,11 @@ export default function SessionPage() {
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0 max-w-3xl">
             <h1 className="flex flex-wrap items-center gap-3 text-[22px] leading-tight font-semibold tracking-tight">
-              <span className="min-w-0 break-words">{data.title}</span>
+              <span className="wrap-any min-w-0">{data.title}</span>
               {data.isLive && <LiveDot label="Live · refreshing" />}
             </h1>
             <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12.5px] text-fg-3">
-              <span className="font-mono">{homeRelative(data.cwd)}</span>
+              <span className="wrap-any font-mono">{homeRelative(data.cwd)}</span>
               {data.gitBranch && (
                 <span className="inline-flex items-center gap-1">
                   <GitBranch size={12} /> {data.gitBranch}

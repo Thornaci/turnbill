@@ -71,7 +71,7 @@ export const PromptRow = memo(function PromptRow({
             )}
             <span className="num text-[11.5px] text-fg-3">{dateTime(prompt.ts)}</span>
           </span>
-          <span className={cx('mt-1 block text-[13px] leading-snug text-fg', !open && 'clamp-2', open && 'whitespace-pre-wrap')}>
+          <span className={cx('wrap-any mt-1 block text-[13px] leading-snug text-fg', !open && 'clamp-2', open && 'whitespace-pre-wrap')}>
             {open ? prompt.text.slice(0, 4000) + (prompt.text.length > 4000 ? ' …' : '') : prompt.text}
           </span>
           <span className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11.5px] text-fg-3">

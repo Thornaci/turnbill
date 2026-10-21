@@ -73,7 +73,7 @@ export default function Search() {
                   <Link to={`/sessions/${h.sessionId}${h.promptIndex ? `#prompt-${h.promptIndex}` : ''}`} className="flex items-start gap-3 px-5 py-3 hover:bg-surface-2">
                     <Badge>{h.kind}</Badge>
                     <div className="min-w-0 flex-1">
-                      <div className={cx('text-[13px] text-fg', h.kind === 'tool' && 'font-mono text-[12px]')}>
+                      <div className={cx('wrap-any text-[13px] text-fg', h.kind === 'tool' && 'font-mono text-[12px]')}>
                         <Highlight text={h.snippet} q={q} />
                       </div>
                       <div className="mt-0.5 truncate text-[12px] text-fg-3">
