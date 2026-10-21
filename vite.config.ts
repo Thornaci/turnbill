@@ -12,12 +12,13 @@ function tokenscopeApi(): Plugin {
   return {
     name: 'tokenscope-api',
     configureServer(server) {
-      let store: unknown;
+      let store: object | undefined;
       server.middlewares.use(async (req: IncomingMessage, res: ServerResponse, next: () => void) => {
         if (!req.url?.startsWith('/api/')) return next();
         const { Store } = await server.ssrLoadModule('/server/store.ts');
         const { apiMiddleware } = await server.ssrLoadModule('/server/api.ts');
-        store ??= new Store(process.env.TOKENSCOPE_DIR);
+        // A server edit reloads the module; rebuild the store so it runs the new code.
+        if (!(store instanceof Store)) store = new Store(process.env.TOKENSCOPE_DIR);
         return apiMiddleware(store)(req, res, next);
       });
     },

@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect } from 'react';
+import { Component, lazy, Suspense, useEffect, type ReactNode } from 'react';
 import { BrowserRouter, Link, Route, Routes, useLocation } from 'react-router-dom';
 import { Layout } from './components/Layout';
 import { Card, Empty, PageSkeleton } from './components/ui';
@@ -27,6 +27,50 @@ function TitleSync() {
   return null;
 }
 
+/** Keeps a rendering bug on one page from blanking the whole app. */
+class ErrorBoundary extends Component<{ children: ReactNode; resetKey: string }, { error: Error | null }> {
+  state = { error: null as Error | null };
+  static getDerivedStateFromError(error: Error) {
+    return { error };
+  }
+  componentDidUpdate(prev: { resetKey: string }) {
+    if (prev.resetKey !== this.props.resetKey && this.state.error) this.setState({ error: null });
+  }
+  render() {
+    if (!this.state.error) return this.props.children;
+    return (
+      <Card>
+        <Empty title="Something went wrong on this page">
+          <span className="font-mono text-[12px]">{this.state.error.message}</span>
+          <div className="mt-3">
+            <button className="underline" onClick={() => location.reload()}>
+              Reload
+            </button>
+          </div>
+        </Empty>
+      </Card>
+    );
+  }
+}
+
+function Routed() {
+  const { pathname } = useLocation();
+  return (
+    <ErrorBoundary resetKey={pathname}>
+      <Suspense fallback={<PageSkeleton />}>
+        <Routes>
+          <Route path="/" element={<Overview />} />
+          <Route path="/projects/:projectId" element={<Project />} />
+          <Route path="/sessions/:sessionId" element={<Session />} />
+          <Route path="/search" element={<Search />} />
+          <Route path="/method" element={<Method />} />
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </Suspense>
+    </ErrorBoundary>
+  );
+}
+
 function NotFound() {
   return (
     <Card>
@@ -46,16 +90,7 @@ export default function App() {
         <ScrollToTop />
         <TitleSync />
         <Layout>
-          <Suspense fallback={<PageSkeleton />}>
-            <Routes>
-              <Route path="/" element={<Overview />} />
-              <Route path="/projects/:projectId" element={<Project />} />
-              <Route path="/sessions/:sessionId" element={<Session />} />
-              <Route path="/search" element={<Search />} />
-              <Route path="/method" element={<Method />} />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </Suspense>
+          <Routed />
         </Layout>
       </BrowserRouter>
     </SettingsProvider>

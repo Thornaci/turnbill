@@ -5,7 +5,7 @@ import { CompositionBar, DailyChart, Heatmap } from '../components/charts';
 import { InsightList, ModelMix, ToolTable } from '../components/panels';
 import { Card, CardHeader, cx, Empty, ErrorBox, Kpi, KpiRow, LiveDot, ModelChip, PageSkeleton, ShareBar, SortHeader, Button } from '../components/ui';
 import { useApi } from '../lib/api';
-import { count, homeRelative, pct, relative, shortDate, tokens, usd } from '../lib/format';
+import { count, dayLabel, homeRelative, pct, relative, shortDate, tokens, usd } from '../lib/format';
 import { download, toCsv } from '../lib/export';
 import { useRange, withRange } from '../lib/range';
 import { useSettings } from '../lib/settings';
@@ -36,6 +36,17 @@ export default function Overview() {
             {range.label} · {count(data.totals.sessions)} sessions across {count(data.totals.projects)} projects
           </p>
         </div>
+        {data.live.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2">
+            {data.live.slice(0, 3).map((s) => (
+              <Link key={s.id} to={withRange(`/sessions/${s.id}`, range.key)} className="card inline-flex max-w-[320px] items-center gap-2.5 px-3 py-1.5 text-[12.5px] hover:bg-surface-2">
+                <span className="live-dot shrink-0" />
+                <span className="truncate text-fg-2">{s.title}</span>
+                <span className="num shrink-0 text-fg">{usd(s.cost.total)}</span>
+              </Link>
+            ))}
+          </div>
+        )}
       </div>
 
       <Hero data={data} />
@@ -137,9 +148,13 @@ function Hero({ data }: { data: OverviewData }) {
   const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   const thisMonth = data.monthly.find((m) => m.month === monthKey)?.total ?? 0;
   const months = data.monthly.slice(-6);
+  const activeDays = data.daily.filter((d) => d.total > 0);
+  const busiest = activeDays.reduce<(typeof activeDays)[number] | null>((m, d) => (!m || d.total > m.total ? d : m), null);
+  const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  const projection = (thisMonth / Math.max(1, now.getDate())) * daysInMonth;
   return (
     <Card i={1} className="grid overflow-hidden lg:grid-cols-12">
-      <div className="p-5 lg:col-span-7 lg:border-r lg:border-line">
+      <div className="flex flex-col p-5 lg:col-span-7 lg:border-r lg:border-line">
         <div className="eyebrow">API-equivalent spend · {range.label}</div>
         <div className="mt-2 flex flex-wrap items-baseline gap-x-3">
           <span className="text-[44px] leading-none font-medium tracking-[-0.02em]">{usd(t.cost.total)}</span>
@@ -147,6 +162,23 @@ function Hero({ data }: { data: OverviewData }) {
         </div>
         <div className="mt-5">
           <CompositionBar cost={t.cost} />
+        </div>
+        <div className="mt-6 grid grid-cols-3 gap-4 border-t border-line pt-4 lg:mt-auto">
+          <div>
+            <div className="eyebrow">Per active day</div>
+            <div className="num mt-1 text-[15px]">{usd(t.cost.total / Math.max(1, activeDays.length))}</div>
+            <div className="text-[11.5px] text-fg-3">{activeDays.length} days with activity</div>
+          </div>
+          <div>
+            <div className="eyebrow">Busiest day</div>
+            <div className="num mt-1 text-[15px]">{busiest ? usd(busiest.total) : '—'}</div>
+            <div className="text-[11.5px] text-fg-3">{busiest ? dayLabel(busiest.date) : ''}</div>
+          </div>
+          <div title="This month so far, extended at the same daily pace">
+            <div className="eyebrow">Month projection</div>
+            <div className="num mt-1 text-[15px]">{usd(projection)}</div>
+            <div className="text-[11.5px] text-fg-3">at this month’s pace</div>
+          </div>
         </div>
       </div>
       <div className="grid grid-cols-1 gap-px bg-[var(--border)] sm:grid-cols-2 lg:col-span-5 lg:grid-cols-1">
@@ -189,7 +221,7 @@ function MonthBars({ months, plan }: { months: { month: string; total: number }[
       <div className="relative flex h-12 items-end gap-1.5">
         {plan != null && max > 0 && (
           <div className="absolute inset-x-0 border-t border-line-strong" style={{ bottom: `${(plan / max) * 100}%` }} title={`Plan price $${plan}`}>
-            <span className="absolute -top-4 right-0 font-mono text-[10px] text-fg-3">plan ${plan}</span>
+            <span className="absolute -top-2 left-0 -translate-y-1/2 bg-surface pr-1 font-mono text-[10px] text-fg-3">plan ${plan}</span>
           </div>
         )}
         {months.map((m) => (

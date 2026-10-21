@@ -129,7 +129,7 @@ export function sessionInsights(d: SessionDetail): Insight[] {
       title: `Prompt #${p.index} cost ${usd(p.cost.total)} — ${Math.round(p.cost.total / med)}× the session median`,
       detail:
         `It took ${steps} API calls${p.subagents.length ? ` including ${p.subagents.length} subagent run${p.subagents.length > 1 ? 's' : ''}` : ''}. ` +
-        (outliers.length > 1 ? `${outliers.length - 1} more prompt${outliers.length > 2 ? 's' : ''} were also 5× above median. ` : '') +
+        (outliers.length > 1 ? `${outliers.length - 1} more prompt${outliers.length > 2 ? 's were' : ' was'} also 5× above median. ` : '') +
         `Open-ended prompts let the agent explore; stating the files, the acceptance check, and what not to touch usually shortens the loop.`,
       impactUSD: p.cost.total,
       sessionId: d.id,

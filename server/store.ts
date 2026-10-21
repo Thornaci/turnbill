@@ -342,6 +342,7 @@ export class Store {
       costByModel,
       usageByModel,
       topSessions: [...sessions].sort((a, b) => b.cost.total - a.cost.total).slice(0, 8),
+      live: this.sessions({ from: null, to: null }).filter((s) => s.isLive),
       topPrompts,
       toolStats: [...tools.values()].sort((a, b) => b.carryCost - a.carryCost),
       projects,

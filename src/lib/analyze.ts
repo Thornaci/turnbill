@@ -122,7 +122,9 @@ export function buildAnalysis(d: SessionDetail & { projectPath?: string }, o: An
     }
     const rebuilds = p.steps.filter((s) => s.cacheRebuild && s.rebuildReason !== 'first');
     if (rebuilds.length) {
-      L.push(`- Cache rebuilds: ${rebuilds.map((s) => `${s.rebuildReason}${s.gapMinutes && s.gapMinutes > 5 ? ` after ${Math.round(s.gapMinutes)} min idle` : ''} (${tokens(s.usage.cacheWrite1h + s.usage.cacheWrite5m)} tokens written)`).join('; ')}`);
+      const why = (s: Step) =>
+        s.rebuildReason === 'idle' ? `after ${Math.round(s.gapMinutes ?? 0)} min idle` : s.rebuildReason === 'model-switch' ? 'after a model switch' : s.rebuildReason === 'compaction' ? 'after compaction' : 'cause unclear';
+      L.push(`- Cache rebuilds: ${rebuilds.map((s) => `${why(s)}, ${tokens(s.usage.cacheWrite1h + s.usage.cacheWrite5m)} tokens re-written for ${usd(s.cost.cacheWrite)}`).join('; ')}`);
     }
     if (o.includeToolDetails) {
       const byTool = new Map<string, string[]>();

@@ -211,6 +211,8 @@ export interface Overview {
   costByModel: Record<string, number>;
   usageByModel: Record<string, Usage>;
   topSessions: SessionSummary[];
+  /** Sessions whose transcript changed in the last few minutes. */
+  live: SessionSummary[];
   topPrompts: { sessionId: string; projectId: string; sessionTitle: string; index: number; text: string; cost: number; steps: number; ts: string }[];
   toolStats: ToolStat[];
   projects: ProjectSummary[];
