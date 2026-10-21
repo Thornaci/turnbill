@@ -1,5 +1,5 @@
 import { useMemo, useState, type ReactNode } from 'react';
-import { Area, Bar, BarChart, CartesianGrid, ReferenceLine, ResponsiveContainer, Scatter, ComposedChart, Tooltip, XAxis, YAxis } from 'recharts';
+import { Area, AreaChart, Bar, BarChart, CartesianGrid, ReferenceLine, ResponsiveContainer, Scatter, ComposedChart, Tooltip, XAxis, YAxis } from 'recharts';
 import { modelLabel } from '../../shared/pricing';
 import type { Cost, DailyPoint, Prompt, Step } from '../../shared/types';
 import { CATEGORIES, modelColor } from '../lib/colors';
@@ -7,6 +7,7 @@ import { dateTime, dayLabel, pct, tokens, usd, usdShort } from '../lib/format';
 import { Legend } from './ui';
 
 const AXIS = { axisLine: false, tickLine: false } as const;
+const DENSE_CALLS = 400;
 
 export function TooltipCard({ title, rows, footer }: { title: ReactNode; rows: { label: string; value: string; color?: string; strong?: boolean }[]; footer?: ReactNode }) {
   return (
@@ -229,7 +230,13 @@ export function SessionCallsChart({ points, compactAt, onPick }: { points: CallP
             <YAxis {...AXIS} tickFormatter={(v) => tokens(v)} width={52} />
             <Tooltip content={tip} cursor={{ stroke: 'var(--border-strong)' }} />
             {compactAt.map((n) => (
-              <ReferenceLine key={n} x={n} stroke="var(--text-3)" strokeWidth={1} label={{ value: 'compacted', position: 'insideTopLeft', fill: 'var(--text-3)', fontSize: 10 }} />
+              <ReferenceLine
+                key={n}
+                x={n}
+                stroke="var(--text-3)"
+                strokeWidth={1}
+                label={compactAt.length <= 4 ? { value: 'compacted', position: 'insideTopLeft', fill: 'var(--text-3)', fontSize: 10 } : undefined}
+              />
             ))}
             <Area type="monotone" dataKey="context" stroke="var(--c1)" strokeWidth={2} fill="url(#ctxFill)" isAnimationActive={false} dot={false} activeDot={{ r: 4, stroke: 'var(--surface)', strokeWidth: 2 }} />
             <Scatter dataKey="rebuild" fill="var(--status-serious)" stroke="var(--surface)" strokeWidth={2} isAnimationActive={false} shape="circle" />
@@ -242,15 +249,28 @@ export function SessionCallsChart({ points, compactAt, onPick }: { points: CallP
       </div>
       <div style={{ height: 130 }}>
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={points} syncId="calls" margin={{ top: 4, right: 12, bottom: 0, left: 4 }} barCategoryGap={points.length > 120 ? 0 : '12%'} onClick={click} style={{ cursor: onPick ? 'pointer' : undefined }}>
-            <CartesianGrid vertical={false} stroke="var(--grid)" />
-            <XAxis dataKey="n" {...AXIS} minTickGap={30} />
-            <YAxis {...AXIS} tickFormatter={usdShort} width={52} />
-            <Tooltip content={tip} cursor={{ fill: 'var(--surface-2)' }} />
-            {CATEGORIES.map((c) => (
-              <Bar key={c.key} dataKey={c.key} stackId="c" fill={c.color} isAnimationActive={false} />
-            ))}
-          </BarChart>
+          {points.length > DENSE_CALLS ? (
+            // Thousands of sub-pixel bars are slow to draw; stepped areas show the same thing with four paths.
+            <AreaChart data={points} syncId="calls" margin={{ top: 4, right: 12, bottom: 0, left: 4 }} onClick={click} style={{ cursor: onPick ? 'pointer' : undefined }}>
+              <CartesianGrid vertical={false} stroke="var(--grid)" />
+              <XAxis dataKey="n" {...AXIS} minTickGap={30} />
+              <YAxis {...AXIS} tickFormatter={usdShort} width={52} />
+              <Tooltip content={tip} cursor={{ stroke: 'var(--border-strong)' }} />
+              {CATEGORIES.map((c) => (
+                <Area key={c.key} type="stepAfter" dataKey={c.key} stackId="c" stroke="none" fill={c.color} fillOpacity={0.9} isAnimationActive={false} activeDot={false} />
+              ))}
+            </AreaChart>
+          ) : (
+            <BarChart data={points} syncId="calls" margin={{ top: 4, right: 12, bottom: 0, left: 4 }} barCategoryGap={points.length > 120 ? 0 : '12%'} onClick={click} style={{ cursor: onPick ? 'pointer' : undefined }}>
+              <CartesianGrid vertical={false} stroke="var(--grid)" />
+              <XAxis dataKey="n" {...AXIS} minTickGap={30} />
+              <YAxis {...AXIS} tickFormatter={usdShort} width={52} />
+              <Tooltip content={tip} cursor={{ fill: 'var(--surface-2)' }} />
+              {CATEGORIES.map((c) => (
+                <Bar key={c.key} dataKey={c.key} stackId="c" fill={c.color} isAnimationActive={false} />
+              ))}
+            </BarChart>
+          )}
         </ResponsiveContainer>
       </div>
     </div>

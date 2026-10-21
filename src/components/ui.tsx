@@ -1,5 +1,6 @@
 import { AlertTriangle, ArrowDown, ArrowUp, Info, OctagonAlert, TriangleAlert, X } from 'lucide-react';
 import { useEffect, useRef, type ButtonHTMLAttributes, type CSSProperties, type ReactNode } from 'react';
+import { Link } from 'react-router-dom';
 import { modelLabel } from '../../shared/pricing';
 import type { Severity } from '../../shared/types';
 import { modelColor } from '../lib/colors';
@@ -195,11 +196,16 @@ export function ErrorBox({ message, onRetry }: { message: string; onRetry?: () =
         <OctagonAlert size={16} style={{ color: 'var(--status-critical)' }} /> Couldn’t load data
       </div>
       <p className="mt-1 text-[13px] text-fg-2">{message}</p>
-      {onRetry && (
-        <Button className="mt-3" size="sm" onClick={onRetry}>
-          Try again
-        </Button>
-      )}
+      <div className="mt-3 flex items-center gap-3">
+        {onRetry && (
+          <Button size="sm" onClick={onRetry}>
+            Try again
+          </Button>
+        )}
+        <Link to="/" className="text-[13px] text-fg-2 underline decoration-line-strong underline-offset-2 hover:text-fg">
+          Back to overview
+        </Link>
+      </div>
     </div>
   );
 }

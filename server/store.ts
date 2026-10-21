@@ -161,6 +161,19 @@ export class Store {
       calibration.estimatedUSD += r.windowEstimate;
     }
 
+    const owners = new Map<string, string>();
+    let shared = 0;
+    for (const [key, e] of this.entries) {
+      for (const f of e.flat) {
+        const owner = owners.get(f.step.id);
+        if (owner === undefined) owners.set(f.step.id, key);
+        else if (owner !== key) shared++;
+      }
+    }
+    if (shared) {
+      warnings.push(`${shared} API calls appear in more than one transcript (usually a resumed session that copied its history); they are counted in each, so totals may be overstated.`);
+    }
+
     const empty = [...this.entries.values()].filter((e) => e.detail.stepCount === 0).length;
     if (empty) warnings.push(`${empty} session file${empty === 1 ? '' : 's'} with no billable API calls are hidden.`);
     this.status = {
@@ -354,8 +367,12 @@ export class Store {
   }
 
   project(projectId: string, range: Range): { project: ProjectSummary; sessions: SessionSummary[]; daily: DailyPoint[] } | null {
-    const project = this.projects(range).find((p) => p.id === projectId);
-    if (!project) return null;
+    let project = this.projects(range).find((p) => p.id === projectId);
+    if (!project) {
+      const known = this.projects({ from: null, to: null }).find((p) => p.id === projectId);
+      if (!known) return null;
+      project = { ...known, sessionCount: 0, promptCount: 0, stepCount: 0, usage: zeroUsage(), cost: zeroCost(), isLive: false };
+    }
     const daily = new Map<string, DailyPoint>();
     for (const e of this.valid()) {
       if (e.detail.projectId !== projectId) continue;

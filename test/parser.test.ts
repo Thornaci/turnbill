@@ -224,3 +224,26 @@ describe('Store', () => {
     expect(hits.some((h) => h.kind === 'tool' && h.snippet.includes('src/auth.ts'))).toBe(true);
   });
 });
+
+describe('Store edge cases', () => {
+  it('returns an empty project instead of 404 when the range has no activity', async () => {
+    const store = new Store(root);
+    await store.refresh(true);
+    const r = store.project(PROJECT, { from: Date.parse('2030-01-01'), to: null });
+    expect(r).not.toBeNull();
+    expect(r!.project.sessionCount).toBe(0);
+    expect(r!.sessions).toHaveLength(0);
+    expect(store.project('-does-not-exist', { from: null, to: null })).toBeNull();
+  });
+
+  it('warns when the same API call appears in two transcripts', async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), 'tokenscope-dup-'));
+    await mkdir(path.join(dir, PROJECT), { recursive: true });
+    const lines = buildMain().map((r) => JSON.stringify(r)).join('\n');
+    await writeFile(path.join(dir, PROJECT, 'one.jsonl'), lines);
+    await writeFile(path.join(dir, PROJECT, 'two.jsonl'), lines);
+    const store = new Store(dir);
+    await store.refresh(true);
+    expect(store.dataStatus().warnings.some((w) => w.includes('more than one transcript'))).toBe(true);
+  });
+});
