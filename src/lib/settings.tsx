@@ -28,13 +28,13 @@ interface SettingsContext extends Settings {
 }
 
 const DEFAULTS: Settings = { theme: 'system', plan: 'api', customMonthly: 0 };
-const KEY = 'tokenscope.settings';
+const KEY = 'turnbill.settings';
 const Ctx = createContext<SettingsContext | null>(null);
 
 function load(): Settings {
   try {
     const raw = localStorage.getItem(KEY);
-    const theme = localStorage.getItem('tokenscope.theme');
+    const theme = localStorage.getItem('turnbill.theme');
     const parsed = raw ? JSON.parse(raw) : {};
     return { ...DEFAULTS, ...parsed, theme: theme === 'light' || theme === 'dark' ? theme : 'system' };
   } catch {
@@ -45,8 +45,8 @@ function load(): Settings {
 function save(s: Settings) {
   try {
     localStorage.setItem(KEY, JSON.stringify({ plan: s.plan, customMonthly: s.customMonthly }));
-    if (s.theme === 'system') localStorage.removeItem('tokenscope.theme');
-    else localStorage.setItem('tokenscope.theme', s.theme);
+    if (s.theme === 'system') localStorage.removeItem('turnbill.theme');
+    else localStorage.setItem('turnbill.theme', s.theme);
   } catch {
     // Storage unavailable; settings last for this page view.
   }

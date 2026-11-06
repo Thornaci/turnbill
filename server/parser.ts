@@ -567,13 +567,16 @@ export async function parseSession(files: SessionFiles, opts: ParseOptions = {})
         if (rec.prUrl) prLinks.add(String(rec.prUrl));
         return;
       case 'cost-state':
+        // The counter covers requests made before this record was written; a resumed session appends later runs after it.
         reported = {
           totalUSD: num(rec.totalCostUSD),
           byModel: Object.fromEntries(Object.entries(rec.modelUsage ?? {}).map(([m, v]: [string, any]) => [m, num(v?.costUSD)])),
           startTime: rec.startTime ? new Date(rec.startTime).toISOString() : null,
+          endTime: lastTs || null,
           linesAdded: num(rec.totalLinesAdded),
           linesRemoved: num(rec.totalLinesRemoved),
           windowEstimate: 0,
+          comparable: true,
         };
         return;
       case 'system': {
@@ -805,7 +808,12 @@ export async function parseSession(files: SessionFiles, opts: ParseOptions = {})
   const rep = reported as ReportedCost | null;
   if (rep) {
     const since = rep.startTime ? Date.parse(rep.startTime) : 0;
-    rep.windowEstimate = allSteps.reduce((a, s) => (Date.parse(s.ts) >= since ? a + s.cost.total : a), 0);
+    const until = rep.endTime ? Date.parse(rep.endTime) : Infinity;
+    rep.windowEstimate = allSteps.reduce((a, s) => {
+      const t = Date.parse(s.ts);
+      return t >= since && t <= until ? a + s.cost.total : a;
+    }, 0);
+    rep.comparable = rep.windowEstimate <= rep.totalUSD;
   }
 
   return {

@@ -12,7 +12,7 @@ export const RANGES = [
 
 export type RangeKey = (typeof RANGES)[number]['key'];
 
-const STORAGE_KEY = 'tokenscope.range';
+const STORAGE_KEY = 'turnbill.range';
 const DAY = 86_400_000;
 /** Round "now" so the query string — and the fetch cache key — stays stable for a few minutes. */
 const BUCKET = 5 * 60_000;

@@ -8,9 +8,9 @@ import { defineConfig, type Plugin } from 'vite';
  * The server code is loaded through Vite's SSR loader, which keeps this config free of
  * TypeScript imports and picks up server edits on the next request.
  */
-function tokenscopeApi(): Plugin {
+function turnbillApi(): Plugin {
   return {
-    name: 'tokenscope-api',
+    name: 'turnbill-api',
     configureServer(server) {
       let store: object | undefined;
       server.middlewares.use(async (req: IncomingMessage, res: ServerResponse, next: () => void) => {
@@ -18,7 +18,7 @@ function tokenscopeApi(): Plugin {
         const { Store } = await server.ssrLoadModule('/server/store.ts');
         const { apiMiddleware } = await server.ssrLoadModule('/server/api.ts');
         // A server edit reloads the module; rebuild the store so it runs the new code.
-        if (!(store instanceof Store)) store = new Store(process.env.TOKENSCOPE_DIR);
+        if (!(store instanceof Store)) store = new Store(process.env.TURNBILL_DIR);
         return apiMiddleware(store)(req, res, next);
       });
     },
@@ -26,7 +26,7 @@ function tokenscopeApi(): Plugin {
 }
 
 export default defineConfig({
-  plugins: [react(), tailwindcss(), tokenscopeApi()],
+  plugins: [react(), tailwindcss(), turnbillApi()],
   server: { host: '127.0.0.1', port: 5173 },
   // Served from localhost; one larger chart chunk is fine.
   build: { chunkSizeWarningLimit: 900 },

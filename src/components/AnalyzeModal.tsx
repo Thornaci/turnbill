@@ -6,7 +6,7 @@ import { download, slug } from '../lib/export';
 import { count, tokens } from '../lib/format';
 import { Button, Modal } from './ui';
 
-const STORE = 'tokenscope.analyze';
+const STORE = 'turnbill.analyze';
 
 function loadOptions(): AnalyzeOptions {
   try {
@@ -63,7 +63,7 @@ export function AnalyzeModal({ open, onClose, session }: { open: boolean; onClos
           <span className="mr-auto text-[12px] text-fg-3">
             {count(text.length)} characters · ~{tokens(text.length / 4)} tokens
           </span>
-          <Button size="sm" variant="ghost" onClick={() => download(`tokenscope-${slug(session.title)}.md`, text, 'text/markdown;charset=utf-8')}>
+          <Button size="sm" variant="ghost" onClick={() => download(`turnbill-${slug(session.title)}.md`, text, 'text/markdown;charset=utf-8')}>
             <Download size={13} /> .md
           </Button>
           <Button size="sm" onClick={() => copy('https://claude.ai/new')}>

@@ -22,7 +22,7 @@ function TitleSync() {
   const { pathname } = useLocation();
   useEffect(() => {
     const section = pathname.startsWith('/projects') ? 'Project' : pathname.startsWith('/sessions') ? 'Session' : pathname.startsWith('/search') ? 'Search' : pathname.startsWith('/method') ? 'Pricing & method' : 'Overview';
-    document.title = `${section} · Tokenscope`;
+    document.title = `${section} · Turnbill`;
   }, [pathname]);
   return null;
 }

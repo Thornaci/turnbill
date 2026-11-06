@@ -94,7 +94,7 @@ let root: string;
 let detail: SessionDetail;
 
 beforeAll(async () => {
-  root = await mkdtemp(path.join(os.tmpdir(), 'tokenscope-'));
+  root = await mkdtemp(path.join(os.tmpdir(), 'turnbill-'));
   const dir = path.join(root, PROJECT);
   const subDir = path.join(dir, SESSION, 'subagents');
   await mkdir(subDir, { recursive: true });
@@ -191,6 +191,30 @@ describe('parseSession', () => {
     expect(detail.reported?.windowEstimate).toBeCloseTo(expected, 10);
   });
 
+  it('ends the comparison window where the counter was written when the session was resumed later', async () => {
+    // Counter written after the first prompt; everything after it belongs to a later run.
+    const recs = buildMain().filter((r: any) => r.type !== 'cost-state');
+    const cut = recs.findIndex((r: any) => r.type === 'system' && r.subtype === 'turn_duration') + 1;
+    recs.splice(cut, 0, { type: 'cost-state', sessionId: SESSION, totalCostUSD: 1, startTime: Date.parse(at(0)) });
+    const file = path.join(await mkdtemp(path.join(os.tmpdir(), 'turnbill-resumed-')), 'resumed.jsonl');
+    await writeFile(file, recs.map((r) => JSON.stringify(r)).join('\n'));
+    const d = await parseSession({ id: 'resumed', projectId: PROJECT, mainFile: file, subagentFiles: [] });
+    expect(d.reported?.endTime).toBe(at(1.1));
+    const firstRun = d.prompts[0].steps.reduce((a, s) => a + s.cost.total, 0);
+    expect(d.reported?.windowEstimate).toBeCloseTo(firstRun, 10);
+    expect(d.reported!.windowEstimate).toBeLessThan(d.cost.total);
+    expect(d.reported?.comparable).toBe(true);
+  });
+
+  it('marks the counter as not comparable when the estimate for its window is higher', async () => {
+    // A run that ended without saving the counter drops its cost, so the counter undercounts the window.
+    const recs = buildMain().map((r: any) => (r.type === 'cost-state' ? { ...r, totalCostUSD: 0.01 } : r));
+    const file = path.join(await mkdtemp(path.join(os.tmpdir(), 'turnbill-lost-run-')), 'lost.jsonl');
+    await writeFile(file, recs.map((r) => JSON.stringify(r)).join('\n'));
+    const d = await parseSession({ id: 'lost', projectId: PROJECT, mainFile: file, subagentFiles: [] });
+    expect(d.reported?.comparable).toBe(false);
+  });
+
   it('produces insights without throwing', () => {
     const insights = sessionInsights(detail);
     expect(Array.isArray(insights)).toBe(true);
@@ -239,7 +263,7 @@ describe('Store edge cases', () => {
   });
 
   it('warns when the same API call appears in two transcripts', async () => {
-    const dir = await mkdtemp(path.join(os.tmpdir(), 'tokenscope-dup-'));
+    const dir = await mkdtemp(path.join(os.tmpdir(), 'turnbill-dup-'));
     await mkdir(path.join(dir, PROJECT), { recursive: true });
     const lines = buildMain().map((r) => JSON.stringify(r)).join('\n');
     await writeFile(path.join(dir, PROJECT, 'one.jsonl'), lines);

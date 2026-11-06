@@ -77,7 +77,7 @@ export default function Project() {
             size="sm"
             onClick={() =>
               download(
-                `tokenscope-${slug(project.name)}-sessions.csv`,
+                `turnbill-${slug(project.name)}-sessions.csv`,
                 toCsv(
                   data.sessions.map((s) => ({
                     session_id: s.id,

@@ -1,4 +1,4 @@
-// Compares Tokenscope's per-request estimate with the cost Claude Code itself records
+// Compares Turnbill's per-request estimate with the cost Claude Code itself records
 // (`cost-state` lines) for every local session that has one.
 import { Store } from '../server/store';
 
@@ -16,7 +16,7 @@ const rows = store
 for (const s of rows) {
   const r = s.reported!;
   console.log(
-    `${s.id.slice(0, 8)}  reported ${r.totalUSD.toFixed(2).padStart(8)}  estimate ${r.windowEstimate.toFixed(2).padStart(8)}  ratio ${(r.windowEstimate / r.totalUSD).toFixed(3)}  ${s.title.slice(0, 48)}`,
+    `${s.id.slice(0, 8)}  reported ${r.totalUSD.toFixed(2).padStart(8)}  estimate ${r.windowEstimate.toFixed(2).padStart(8)}  ratio ${(r.windowEstimate / r.totalUSD).toFixed(3)}${r.comparable ? '' : '  (not comparable, excluded)'}  ${s.title.slice(0, 48)}`,
   );
 }
 const c = status.calibration;

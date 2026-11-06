@@ -69,5 +69,5 @@ const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPat
 if (isMain) {
   const here = path.dirname(fileURLToPath(import.meta.url));
   const port = Number(process.env.PORT) || 4317;
-  serve({ port, staticDir: path.resolve(here, '../dist') }).then(({ url }) => console.log(`Tokenscope running at ${url}`));
+  serve({ port, staticDir: path.resolve(here, '../dist') }).then(({ url }) => console.log(`Turnbill running at ${url}`));
 }

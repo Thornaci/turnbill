@@ -11,7 +11,7 @@ import { cx, Segmented } from './ui';
 
 export function Logo() {
   return (
-    <Link to="/" className="flex items-center gap-2.5" aria-label="Tokenscope home">
+    <Link to="/" className="flex items-center gap-2.5" aria-label="Turnbill home">
       <svg width="22" height="22" viewBox="0 0 32 32" aria-hidden>
         <rect width="32" height="32" rx="7" fill="var(--ink)" />
         <rect x="7" y="17" width="4" height="8" rx="1.5" fill="var(--c4)" />
@@ -19,7 +19,7 @@ export function Logo() {
         <rect x="18" y="14" width="4" height="11" rx="1.5" fill="var(--c2)" />
         <rect x="23.5" y="7" width="4" height="18" rx="1.5" fill="var(--c1)" />
       </svg>
-      <span className="text-[15px] font-semibold tracking-tight">Tokenscope</span>
+      <span className="text-[15px] font-semibold tracking-tight">Turnbill</span>
     </Link>
   );
 }

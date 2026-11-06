@@ -37,7 +37,7 @@ function user(promptId: string, text: string, minute: number, extra: Record<stri
 }
 
 async function session(lines: unknown[], subagents: Record<string, unknown[]> = {}) {
-  const root = await mkdtemp(path.join(os.tmpdir(), 'tokenscope-fb-'));
+  const root = await mkdtemp(path.join(os.tmpdir(), 'turnbill-fb-'));
   const dir = path.join(root, '-tmp-fb');
   await mkdir(path.join(dir, 's1', 'subagents'), { recursive: true });
   const main = path.join(dir, 's1.jsonl');

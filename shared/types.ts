@@ -109,10 +109,17 @@ export interface ReportedCost {
   totalUSD: number;
   byModel: Record<string, number>;
   startTime: string | null;
+  /** Timestamp of the last transcript record before the counter was written. */
+  endTime: string | null;
   linesAdded: number;
   linesRemoved: number;
-  /** Tokenscope's estimate for requests made since `startTime`, for a like-for-like comparison. */
+  /** Turnbill's estimate for requests made between `startTime` and `endTime`, for a like-for-like comparison. */
   windowEstimate: number;
+  /**
+   * False when the estimate exceeds the counter. Transcripts lack background requests, so a matching window
+   * always estimates lower; higher means a run ended without saving the counter and its cost was dropped.
+   */
+  comparable: boolean;
 }
 
 export interface SessionSummary {

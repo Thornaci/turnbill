@@ -13,7 +13,7 @@ export default function Method() {
     <div className="space-y-4">
       <div className="rise">
         <h1 className="text-[22px] font-semibold tracking-tight">Pricing & method</h1>
-        <p className="text-[13px] text-fg-3">How Tokenscope turns local transcripts into dollar estimates, and where those estimates fall short.</p>
+        <p className="text-[13px] text-fg-3">How Turnbill turns local transcripts into dollar estimates, and where those estimates fall short.</p>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-12">
@@ -55,7 +55,7 @@ export default function Method() {
               {c && c.sessions > 0 && (
                 <>
                   {' '}
-                  Across {c.sessions} of your sessions where Claude Code also kept its own counter, Tokenscope’s estimate came to{' '}
+                  Across {c.sessions} of your sessions where Claude Code also kept its own counter, Turnbill’s estimate came to{' '}
                   <span className="num text-fg">{pct(c.estimatedUSD / c.reportedUSD, 1)}</span> of it ({usd(c.estimatedUSD)} vs {usd(c.reportedUSD)}).
                 </>
               )}

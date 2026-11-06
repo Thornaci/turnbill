@@ -91,7 +91,7 @@ export default function SessionPage() {
 
   const exportPrompts = () =>
     download(
-      `tokenscope-${slug(data.title)}-prompts.csv`,
+      `turnbill-${slug(data.title)}-prompts.csv`,
       toCsv(
         data.prompts.map((p) => ({
           prompt: p.index,
@@ -112,7 +112,7 @@ export default function SessionPage() {
     );
   const exportCalls = () =>
     download(
-      `tokenscope-${slug(data.title)}-api-calls.csv`,
+      `turnbill-${slug(data.title)}-api-calls.csv`,
       toCsv(
         data.prompts.flatMap((p) =>
           [...p.steps.map((s) => ({ s, agent: '' })), ...p.subagents.flatMap((r) => r.steps.map((s) => ({ s, agent: r.agentType })))].map(({ s, agent }) => ({
@@ -184,7 +184,7 @@ export default function SessionPage() {
             <Button size="sm" variant="ghost" onClick={exportCalls}>
               API calls CSV
             </Button>
-            <Button size="sm" variant="ghost" onClick={() => download(`tokenscope-${slug(data.title)}.json`, JSON.stringify(data, null, 2), 'application/json')}>
+            <Button size="sm" variant="ghost" onClick={() => download(`turnbill-${slug(data.title)}.json`, JSON.stringify(data, null, 2), 'application/json')}>
               JSON
             </Button>
             <Button variant="primary" onClick={() => setAnalyze(true)}>
@@ -206,13 +206,24 @@ export default function SessionPage() {
       {reported && (
         <div className="rise flex flex-wrap items-center gap-x-4 gap-y-1 rounded-[10px] border border-dashed border-line-strong px-5 py-3 text-[12.5px] text-fg-2" style={{ ['--i' as string]: 2 }}>
           <span className="eyebrow">Cross-check</span>
-          <span>
-            Claude Code’s own counter for its last run{reported.startTime ? ` (since ${dateTime(reported.startTime)})` : ''}: <span className="num text-fg">{usd(reported.totalUSD)}</span>
-          </span>
-          <span>
-            Tokenscope for the same window: <span className="num text-fg">{usd(reported.windowEstimate)}</span> ({pct(reported.windowEstimate / reported.totalUSD)})
-          </span>
-          <span className="text-fg-3">The gap is background requests (titles, summaries, compaction) that are not written to the transcript.</span>
+          {reported.comparable ? (
+            <>
+              <span>
+                Claude Code’s own counter for its last run{reported.startTime ? ` (${dateTime(reported.startTime)}${reported.endTime ? ` → ${dateTime(reported.endTime)}` : ''})` : ''}: <span className="num text-fg">{usd(reported.totalUSD)}</span>
+              </span>
+              <span>
+                Turnbill for the same window: <span className="num text-fg">{usd(reported.windowEstimate)}</span> ({pct(reported.windowEstimate / reported.totalUSD)})
+              </span>
+              <span className="text-fg-3">The gap is background requests (titles, summaries, compaction) that are not written to the transcript.</span>
+            </>
+          ) : (
+            <>
+              <span>
+                Claude Code’s own counter: <span className="num text-fg">{usd(reported.totalUSD)}</span>
+              </span>
+              <span className="text-fg-3">Not comparable: a run of this session ended without saving the counter.</span>
+            </>
+          )}
           {(reported.linesAdded > 0 || reported.linesRemoved > 0) && (
             <span className="num ml-auto text-fg-3">
               +{count(reported.linesAdded)} / −{count(reported.linesRemoved)} lines

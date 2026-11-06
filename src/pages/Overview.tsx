@@ -21,7 +21,7 @@ export default function Overview() {
     return (
       <Card>
         <Empty title={data.dataStatus.files ? `No Claude Code activity in ${range.label.toLowerCase()}` : 'No Claude Code transcripts found'}>
-          {data.dataStatus.files ? 'Pick a longer time range above.' : `Tokenscope reads ${data.dataStatus.root}. Run Claude Code in any project and come back.`}
+          {data.dataStatus.files ? 'Pick a longer time range above.' : `Turnbill reads ${data.dataStatus.root}. Run Claude Code in any project and come back.`}
         </Empty>
       </Card>
     );
@@ -270,7 +270,7 @@ function ProjectsTable({ projects, allModels, total }: { projects: ProjectSummar
             variant="ghost"
             onClick={() =>
               download(
-                'tokenscope-projects.csv',
+                'turnbill-projects.csv',
                 toCsv(projects.map((p) => ({ project: p.path, sessions: p.sessionCount, prompts: p.promptCount, api_calls: p.stepCount, last_active: p.lastActive, cost_usd: p.cost.total.toFixed(4) }))),
               )
             }

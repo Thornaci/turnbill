@@ -155,7 +155,7 @@ export class Store {
     const calibration = { sessions: 0, reportedUSD: 0, estimatedUSD: 0 };
     for (const e of this.entries.values()) {
       const r = e.detail.reported;
-      if (!r || r.windowEstimate <= 0 || r.totalUSD <= 0) continue;
+      if (!r || !r.comparable || r.windowEstimate <= 0 || r.totalUSD <= 0) continue;
       calibration.sessions++;
       calibration.reportedUSD += r.totalUSD;
       calibration.estimatedUSD += r.windowEstimate;

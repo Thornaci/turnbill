@@ -16,9 +16,9 @@ function flag(name) {
 }
 
 if (flag('help') || flag('h')) {
-  console.log(`Tokenscope — local cost explorer for Claude Code
+  console.log(`Turnbill — local cost explorer for Claude Code
 
-Usage: tokenscope [--port 4317] [--dir ~/.claude/projects] [--open]
+Usage: turnbill [--port 4317] [--dir ~/.claude/projects] [--open]
 
   --port   Port to listen on (default 4317, or $PORT)
   --dir    Claude Code projects directory (default $CLAUDE_CONFIG_DIR/projects or ~/.claude/projects)
@@ -31,7 +31,7 @@ The server listens on 127.0.0.1 only. Transcripts never leave this machine.`);
 const serverEntry = path.join(root, 'dist-server', 'index.js');
 const staticDir = path.join(root, 'dist');
 if (!existsSync(serverEntry) || !existsSync(path.join(staticDir, 'index.html'))) {
-  console.error('Tokenscope is not built yet. Run `npm run build` first (or `npm run dev` for development).');
+  console.error('Turnbill is not built yet. Run `npm run build` first (or `npm run dev` for development).');
   process.exit(1);
 }
 
@@ -43,7 +43,7 @@ try {
   const started = Date.now();
   const { url, store } = await serve({ port, root: dir, staticDir });
   const status = store.dataStatus();
-  console.log(`Tokenscope  ${url}`);
+  console.log(`Turnbill    ${url}`);
   console.log(`Reading     ${status.root} (${status.files} files, parsed in ${Date.now() - started} ms)`);
   for (const w of status.warnings) console.log(`            ${w}`);
   if (flag('open')) {
