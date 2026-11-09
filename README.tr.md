@@ -7,7 +7,7 @@ Claude Code kullanımının sana neye mal olduğunu her prompt'a ve her API ça�
 <p align="center">
   <img src="docs/media/demo.gif" alt="Turnbill demosu: npx turnbill çalıştır, bir projeyi aç, bir session'ı aç, en pahalı prompt'u açıp her API çağrısını gör, sonra maliyet incelemesini kopyala" width="800">
 </p>
-<p align="center"><a href="docs/media/demo.mp4?raw=true">Yüksek kaliteli videoyu izle (MP4)</a> · Demoda uydurma veri kullanılır.</p>
+<p align="center"><a href="docs/media/demo.mp4?raw=true">Yüksek kaliteli videoyu indir (MP4, 5 MB)</a> · Demoda uydurma veri kullanılır.</p>
 
 ## Hızlı başlangıç
 

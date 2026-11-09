@@ -7,7 +7,7 @@ Descubre cuánto te cuesta usar Claude Code, hasta el último prompt y la últim
 <p align="center">
   <img src="docs/media/demo.gif" alt="Demo de Turnbill: ejecutar npx turnbill, abrir un proyecto, abrir una sesión, desplegar el prompt más caro para ver cada llamada a la API y copiar una revisión de costes" width="800">
 </p>
-<p align="center"><a href="docs/media/demo.mp4?raw=true">Ver el vídeo en alta calidad (MP4)</a> · La demo usa datos inventados.</p>
+<p align="center"><a href="docs/media/demo.mp4?raw=true">Descargar el vídeo en alta calidad (MP4, 5 MB)</a> · La demo usa datos inventados.</p>
 
 ## Inicio rápido
 

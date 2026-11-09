@@ -7,7 +7,7 @@ See what your Claude Code usage costs, down to every prompt and API call. Turnbi
 <p align="center">
   <img src="docs/media/demo.gif" alt="Turnbill demo: run npx turnbill, open a project, open a session, expand the most expensive prompt to see each API call, then copy a cost review" width="800">
 </p>
-<p align="center"><a href="docs/media/demo.mp4?raw=true">Watch the full-quality video (MP4)</a> · The demo uses made-up data.</p>
+<p align="center"><a href="docs/media/demo.mp4?raw=true">Download the full-quality video (MP4, 5 MB)</a> · The demo uses made-up data.</p>
 
 ## Quick start
 
